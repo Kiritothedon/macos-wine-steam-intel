@@ -26,7 +26,7 @@ remove_launcher_lock() {
 }
 
 prefix_is_running() {
-  [[ -x "${WINE_SERVER}" ]] && WINEPREFIX="${WINEPREFIX}" "${WINE_SERVER}" -p >/dev/null 2>&1
+  pgrep -f "${WINE_SERVER}" >/dev/null 2>&1
 }
 
 steam_is_running() {
