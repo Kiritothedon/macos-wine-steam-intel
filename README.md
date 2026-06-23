@@ -84,13 +84,36 @@ If you are familiar with Terminal and bash, you can also customize launch option
 USE_DXVK=0 ./run.command      # use WineD3D instead of DXVK
 ```
 
-## Performance notes for this hardware class (8 GB Intel iMac, Radeon Pro 570X)
+## Memory auto-tuning
 
-- 8 GB RAM is tight for gaming. Quit other apps, and prefer 1080p over 4K.
-- DXVK shader compilation causes stutter the first time you play a level; it
-  smooths out as the shader cache fills.
-- Older/2D Steam games run great. AAA titles will be limited mostly by the 8 GB
-  of RAM and the GPU, not by Wine.
+By default (`MERLOT_AUTO_TUNE=1`) `run.command` detects your Mac's RAM and GPU
+VRAM at launch and writes a per-prefix `dxvk.conf` so games see accurate,
+hardware-appropriate memory budgets instead of generic defaults:
+
+- `dxgi.maxDeviceMemory` is set to your real VRAM, so games pick texture quality
+  to match the GPU (e.g. the full 4 GB on a Radeon Pro 570X).
+- `dxgi.maxSharedMemory` is scaled from your system RAM (a quarter of it,
+  clamped to 1–8 GB), so low-RAM Macs aren't pushed into swap and high-RAM Macs
+  aren't artificially starved.
+- A tier is reported on launch: `low (<8 GB)`, `balanced (8–16 GB)`, or
+  `high (≥16 GB)`.
+
+It adapts automatically — a 16 GB or 32 GB Mac gets a larger shared-memory
+budget without any changes. Override or disable it:
+
+```bash
+MERLOT_AUTO_TUNE=0 ./run.command                       # don't generate dxvk.conf
+DXVK_MAX_DEVICE_MEMORY=4096 DXVK_MAX_SHARED_MEMORY=4096 ./run.command   # force values (MB)
+```
+
+If you set your own `DXVK_CONFIG_FILE`, auto-tuning steps aside and uses your file.
+
+### General performance tips
+
+- DXVK compiles shaders on first play, which causes brief stutter; it smooths
+  out as the shader cache fills.
+- On 8 GB Macs, quit other apps and prefer 1080p over 4K. Older/2D Steam games
+  run great; heavy AAA titles are limited mostly by RAM and GPU, not by Wine.
 
 ## Stop
 

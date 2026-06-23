@@ -34,6 +34,12 @@ Everything else (prefix init, registry tweaks, detached launch, the Merlot
     - downloads the DXVK-macOS "builtin" tarball and installs the
       `i386-windows` / `x86_64-windows` dll folders into `DXVK_ROOT` (default `~/DXVK`)
     - enables it via `WINEDLLPATH_PREPEND` (same mechanism the original used for DXMT)
+    - **memory auto-tune** (`MERLOT_AUTO_TUNE=1`, default): detects system RAM
+      (`sysctl -n hw.memsize`) and GPU VRAM (`system_profiler SPDisplaysDataType`),
+      then writes `${WINEPREFIX}/dxvk.conf` and exports `DXVK_CONFIG_FILE` at it.
+      It sets `dxgi.maxDeviceMemory` to the detected VRAM, `dxgi.maxSharedMemory`
+      to `RAM/4` clamped to 1024–8192 MB, and `d3d9.maxAvailableMemory` to VRAM.
+      Skipped if the caller already set `DXVK_CONFIG_FILE`.
     - passes through `DXVK_HUD`, `DXVK_FRAME_RATE`, `DXVK_CONFIG`,
       `DXVK_CONFIG_FILE` when the caller sets them
   - Opt-in (`USE_DXVK=0`, WineD3D):
@@ -63,6 +69,10 @@ Defaults are the values in `run.command`.
 - `DXVK_RELEASE` — DXVK-macOS release tag (default `v1.10.3-20230507-repack`).
   Must exist in [Gcenx/DXVK-macOS](https://github.com/Gcenx/DXVK-macOS/releases)
   as `dxvk-macOS-async-${DXVK_RELEASE}-builtin.tar.gz`.
+- `MERLOT_AUTO_TUNE` — `1` (default) auto-generates `${WINEPREFIX}/dxvk.conf`
+  from detected RAM/VRAM; `0` leaves DXVK memory at its defaults.
+- `DXVK_MAX_DEVICE_MEMORY` / `DXVK_MAX_SHARED_MEMORY` — manual overrides in MB
+  for the auto-tuned values (empty = derive from hardware).
 - `WINE_ROOT` — where Wine is extracted (default `~/wine-$WINE_VERSION`).
 - `WINEPREFIX` — Steam prefix (default `~/.wine-steam-intel`).
 - `DXVK_ROOT` — where DXVK dll folders live (default `~/DXVK`).
