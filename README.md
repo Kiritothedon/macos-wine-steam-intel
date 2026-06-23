@@ -1,25 +1,59 @@
-# Run Windows Steam games on Intel Mac (Wine + DXVK)
+# Run Windows Steam games on Intel Mac for free (Wine + DXVK)
 
-**Intel-Mac edition** of [ByMedion/macos-wine-steam](https://github.com/ByMedion/macos-wine-steam).
-The original targets Apple Silicon (Rosetta + DXMT/GPTK). Those pieces are
-Apple-Silicon-only, so this fork swaps them for the Intel-native path:
+> **This is a fork.** All credit for the original idea and tooling goes to
+> **[ByMedion/macos-wine-steam](https://github.com/ByMedion/macos-wine-steam)**,
+> which targets Apple Silicon Macs. This repository is just that project adapted
+> to run on **Intel Macs**, which the original does not support.
+
+The original uses Rosetta + DXMT/GPTK, which are Apple-Silicon-only. This fork
+swaps them for the Intel-native path:
 
 - **No Rosetta.** The Wine build is x86_64 and runs natively on Intel, so
   `run.command` never needs your password.
 - **DXVK + MoltenVK** (DirectX 10/11 → Vulkan → Metal) replaces DXMT/GPTK.
   MoltenVK ships inside the Wine build, so AMD/Intel GPUs (e.g. Radeon Pro 570X)
   are supported.
+- **Memory auto-tuning** sizes DXVK to your Mac's real RAM and VRAM (see below).
 
-For developer details, see the [Developer README](README_DEV.md).
+---
 
-## References & Credits
+## ⚡ Quick start (the easy way)
 
-- Original project (Apple Silicon):
-  [ByMedion/macos-wine-steam](https://github.com/ByMedion/macos-wine-steam)
-- Wine builds used by this project:
-  [Gcenx/macOS_Wine_builds](https://github.com/Gcenx/macOS_Wine_builds)
-- DXVK for macOS:
-  [Gcenx/DXVK-macOS](https://github.com/Gcenx/DXVK-macOS)
+If you just want to play, do exactly this:
+
+1. **Download this project.** Click the green **`Code`** button at the top of
+   this page → **`Download ZIP`**. Then double-click the ZIP to unzip it.
+2. **Install the launchers.** Open the unzipped folder and **double-click
+   `install_merlot.command`**.
+   - If macOS says it's blocked: **right-click it → `Open` → `Open`**.
+   - Enter your Mac password if asked (it only needs this to put the apps in
+     your Applications folder).
+3. **Play.** Open **`/Applications/Merlot Apps`** (or search Spotlight with
+   `⌘ Space`) and open **`Steam (Merlot)`**.
+   - First launch downloads Wine, DXVK and Steam, so it takes a few minutes —
+     this only happens once.
+   - Finish the small Steam installer window when it appears, then sign in to
+     Steam and play.
+
+That's it. No Terminal commands, no Rosetta, no password to *play* (only the
+one-time install step asks for it).
+
+> 💡 To stop: in Steam choose **Steam → Exit**. To remove everything later,
+> double-click **`uninstall.command`**.
+
+For developer details and every tunable option, see the
+[Developer README](README_DEV.md).
+
+## Credits
+
+This project would not exist without:
+
+- **[ByMedion/macos-wine-steam](https://github.com/ByMedion/macos-wine-steam)** —
+  the original Apple Silicon project this is forked from. Please star/support the
+  original.
+- [Gcenx/macOS_Wine_builds](https://github.com/Gcenx/macOS_Wine_builds) — the
+  macOS Wine builds (which bundle MoltenVK).
+- [Gcenx/DXVK-macOS](https://github.com/Gcenx/DXVK-macOS) — DXVK for macOS.
 
 ## Requirements
 
