@@ -54,6 +54,12 @@ WINE_RETINA_MODE="${WINE_RETINA_MODE:-0}" # 1=enable RetinaMode, 0=disable Retin
 # 0=keep the original foreground behavior (Terminal window must stay open).
 MERLOT_DETACH="${MERLOT_DETACH:-1}"
 MERLOT_STEAM_LOG="${MERLOT_STEAM_LOG:-${TMPDIR:-/tmp}/merlot-steam.log}"
+# Steam's CEF UI (login/library chrome) renders as a BLACK WINDOW under Wine on
+# macOS unless CEF GPU acceleration is disabled. On by default; it only affects
+# Steam's own 2D interface, never in-game (DXVK) rendering. Set to 0 to disable.
+STEAM_CEF_DISABLE_GPU="${STEAM_CEF_DISABLE_GPU:-1}"
+# Extra arguments appended to the Steam launch (advanced).
+STEAM_LAUNCH_ARGS="${STEAM_LAUNCH_ARGS:-}"
 # Default before we added this: the value is not set in registry (Wine internal default).
 # Set to force|enable|disable to override, or leave empty to keep default.
 WINE_MOUSE_WARP_OVERRIDE="${WINE_MOUSE_WARP_OVERRIDE:-}"
@@ -390,6 +396,15 @@ launch_steam() {
   [[ -n "${steam_exe}" ]] || die "steam.exe not found."
 
   local -a steam_cmd=("${WINE_BIN}" "${steam_exe}")
+  if [[ "${STEAM_CEF_DISABLE_GPU}" == "1" ]]; then
+    # Work around the black-window CEF rendering bug on macOS Wine.
+    steam_cmd+=(-cef-disable-gpu -cef-disable-gpu-compositing)
+  fi
+  if [[ -n "${STEAM_LAUNCH_ARGS}" ]]; then
+    # Word-split intentionally so callers can pass multiple flags.
+    # shellcheck disable=SC2206
+    steam_cmd+=(${STEAM_LAUNCH_ARGS})
+  fi
   if [[ -n "${STEAM_GAME_ID:-}" ]]; then
     echo "Launching Steam game ${STEAM_GAME_ID}..."
     steam_cmd+=(-applaunch "${STEAM_GAME_ID}")

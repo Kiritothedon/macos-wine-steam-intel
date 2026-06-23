@@ -164,6 +164,20 @@ If Steam is running, follow the steps in "Stop" first.
 3. It may ask for your macOS password to remove `/Applications/Merlot Apps`.
 4. It asks for confirmation per item. Type `y` to remove or `n` to keep it.
 
+## Troubleshooting
+
+- **Steam opens as a black window / blank login box.** This is a known macOS-Wine
+  issue with Steam's CEF interface. It is handled automatically: `run.command`
+  launches Steam with `-cef-disable-gpu -cef-disable-gpu-compositing`
+  (`STEAM_CEF_DISABLE_GPU=1`, the default). This affects only Steam's own 2D UI,
+  never in-game rendering. To turn it off, run with `STEAM_CEF_DISABLE_GPU=0`.
+- **A `glClear ... GL_INVALID_FRAMEBUFFER_OPERATION` line in the log** is harmless
+  Steam-client-UI noise (Steam's chrome uses D3D9 → Wine's OpenGL path; the DXVK
+  backend here covers D3D10/11). It does not affect games.
+- **You see two Steams.** If you also have the native macOS Steam app installed,
+  it runs independently of this Wine Steam. Log into the Wine Steam to play
+  Windows-only games.
+
 ## Notes
 
 - **Intel only.** Apple Silicon Macs should use the original project.

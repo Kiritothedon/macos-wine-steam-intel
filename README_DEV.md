@@ -81,6 +81,10 @@ Defaults are the values in `run.command`.
 - `WINE_MOUSE_WARP_OVERRIDE` — empty (default) keeps Wine default; `force|enable|disable`.
 - `MERLOT_DETACH` — `1` (default) detaches Steam from Terminal; `0` foreground.
 - `MERLOT_STEAM_LOG` — detached-mode Steam log path.
+- `STEAM_CEF_DISABLE_GPU` — `1` (default) launches Steam with
+  `-cef-disable-gpu -cef-disable-gpu-compositing` to fix the black-window CEF
+  rendering bug on macOS Wine; `0` launches without them.
+- `STEAM_LAUNCH_ARGS` — extra arguments appended to the Steam launch (advanced).
 
 Passed through to DXVK when set (e.g. from a game config):
 - `DXVK_FRAME_RATE` — frame-rate cap, e.g. `60` (`0` = uncapped).
