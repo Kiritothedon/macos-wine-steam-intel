@@ -17,26 +17,61 @@ swaps them for the Intel-native path:
 
 ---
 
-## ⚡ Quick start (the easy way)
+## ⚡ Quick start (recommended: Sikarugir + Steam)
 
-If you just want to play, do exactly this:
+**For Steam on Intel Macs, use [Sikarugir](https://github.com/Sikarugir-App/Sikarugir)** (free,
+CrossOver-lineage Wine). Vanilla Wine from this repo can install Steam, but the **Steam login
+window is unreliable** on Intel (black window / no UI). Sikarugir's patched engine renders
+Steam properly — we verified this on an iMac 2019 with Radeon Pro 570X.
+
+### Step 1 — Install Sikarugir
+
+```bash
+brew install --cask Sikarugir-App/sikarugir/sikarugir
+```
+
+### Step 2 — Create a Steam wrapper
+
+1. Open **Sikarugir Creator** (from `/Applications`).
+2. Download the latest **Wine engine** when prompted.
+3. **Create New Blank Wrapper** → name it `Steam` (or anything you like).
+4. Double-click the wrapper → **Install Software** → **Choose Setup Executable** →
+   pick `SteamSetup.exe` from [steampowered.com/about](https://store.steampowered.com/about/).
+5. Complete the installer. Ignore **"No new executables found"** if it appears — Steam still
+   installs.
+6. Sign in to Steam when the window opens.
+
+### Step 3 — Enable DXVK + memory auto-tuning (uses your GPU RAM)
+
+From this repo, run (adjust the path if you named your wrapper differently):
+
+```bash
+./scripts/configure_sikarugir_wrapper.sh "$HOME/Applications/Sikarugir/Stream.app"
+```
+
+This enables **DXVK** (best for AMD GPUs like Radeon Pro 570X), points the wrapper at
+`steam.exe`, and writes a **`dxvk.conf` tuned to your Mac's RAM and VRAM** on every launch
+(e.g. 8192 MB RAM / 4096 MB VRAM → reports full 4 GB VRAM to games).
+
+Then launch your wrapper from Finder or Spotlight.
+
+---
+
+## Alternative: Merlot launchers (vanilla Wine)
+
+This path uses **Gcenx Wine + DXVK** directly (no Sikarugir). Good for running Windows
+`.exe` files and experimenting, but **Steam's UI may stay black** on Intel — see
+[Troubleshooting](#troubleshooting).
+
+If you still want to try it:
 
 1. **Download this project.** Click the green **`Code`** button at the top of
    this page → **`Download ZIP`**. Then double-click the ZIP to unzip it.
 2. **Install the launchers.** Open the unzipped folder and **double-click
    `install_merlot.command`**.
    - If macOS says it's blocked: **right-click it → `Open` → `Open`**.
-   - Enter your Mac password if asked (it only needs this to put the apps in
-     your Applications folder).
-3. **Play.** Open **`/Applications/Merlot Apps`** (or search Spotlight with
-   `⌘ Space`) and open **`Steam (Merlot)`**.
-   - First launch downloads Wine, DXVK and Steam, so it takes a few minutes —
-     this only happens once.
-   - Finish the small Steam installer window when it appears, then sign in to
-     Steam and play.
-
-That's it. No Terminal commands, no Rosetta, no password to *play* (only the
-one-time install step asks for it).
+   - **No password?** Run `INSTALL_ROOT="$HOME/Applications" ./install_merlot.command`
+3. **Play.** Open **`Steam (Merlot)`** from Spotlight (`⌘ Space`).
 
 > 💡 To stop: in Steam choose **Steam → Exit**. To remove everything later,
 > double-click **`uninstall.command`**.
@@ -54,6 +89,8 @@ This project would not exist without:
 - [Gcenx/macOS_Wine_builds](https://github.com/Gcenx/macOS_Wine_builds) — the
   macOS Wine builds (which bundle MoltenVK).
 - [Gcenx/DXVK-macOS](https://github.com/Gcenx/DXVK-macOS) — DXVK for macOS.
+- **[Sikarugir-App/Sikarugir](https://github.com/Sikarugir-App/Sikarugir)** — recommended
+  free Steam wrapper for Intel Macs (CrossOver-lineage Wine).
 
 ## Requirements
 
@@ -170,23 +207,30 @@ If Steam is running, follow the steps in "Stop" first.
 
 ## Troubleshooting
 
-- **Steam opens as a black window / blank login box.** Modern Steam's 64-bit
-  Chromium UI (`cef.win64`) does not paint under Wine's macOS driver. The fix is
-  to run the prefix in **Windows 7 mode**, which makes Steam use its older
-  Chromium build (`cef.win7x64`) that Wine *can* render. This is the default
-  here (`WINE_WINDOWS_VERSION=win7`), together with
-  `-cef-disable-gpu`/`-cef-disable-sandbox`. If you switched an existing prefix
-  from Windows 10, Steam re-downloads the matching client once.
-  - If the Steam window is still black on the very first paint, **drag a corner
-    to resize it** — Wine sometimes needs one repaint to show the content.
-  - These settings affect only Steam's launcher UI, never in-game rendering.
-- **A game requires Windows 10.** Most games run fine in Win7 mode under Wine.
-  If a specific game refuses to start, you can flip the prefix back with
-  `WINE_WINDOWS_VERSION=win10 ./run.command` (the Steam UI may go black again).
-- **You see two Steams.** If you also have the native macOS Steam app installed,
-  it runs independently of this Wine Steam. Log into the Wine Steam to play
-  Windows-only games. (Check which window is focused: our Steam shows up as the
-  `wine` app.)
+### Steam UI (black window / nothing on screen) — use Sikarugir
+
+On **Intel Macs**, vanilla Wine often **cannot reliably paint Steam's Chromium UI**.
+We tested extensively (CEF GPU off/on, sandbox off, virtual desktop, Windows 7 mode):
+Steam's backend connects, but the login window stays black or invisible.
+
+**Fix:** use **[Sikarugir](https://github.com/Sikarugir-App/Sikarugir)** for Steam (see
+[Quick start](#-quick-start-recommended-sikarugir--steam) above). Its CrossOver-derived
+engine renders the Steam client correctly. Then run
+`scripts/configure_sikarugir_wrapper.sh` on your wrapper for DXVK + memory tuning.
+
+This repo's `run.command` / Merlot apps remain useful for **non-Steam Windows games** and
+as a reference Intel Wine + DXVK stack.
+
+### Merlot / run.command (if you use vanilla Wine anyway)
+
+- **Steam opens as a black window.** Modern Steam's 64-bit Chromium UI (`cef.win64`) does
+  not paint under Wine's macOS driver. We default to **Windows 7 mode** (`WINE_WINDOWS_VERSION=win7`)
+  plus `-cef-disable-gpu`/`-cef-disable-sandbox`, but results are still **unreliable on Intel**.
+  - If anything appears, **drag a corner to resize** — Wine sometimes needs one repaint.
+- **A game requires Windows 10.** Most games run fine in Win7 mode. If one refuses,
+  `WINE_WINDOWS_VERSION=win10 ./run.command` (Steam UI may black out again).
+- **You see two Steams.** Native macOS Steam and Wine Steam are separate. Use the Wine/Sikarugir
+  one for Windows-only games.
 
 ## Notes
 
@@ -196,9 +240,12 @@ If Steam is running, follow the steps in "Stop" first.
 ### Verified on
 
 - iMac (2019), 6-core Intel Core i5, **Radeon Pro 570X (4 GB)**, 8 GB RAM,
-  macOS 15.7.7 — Wine staging 11.10 runs natively (no Rosetta), the Steam Wine
-  prefix initializes, DXVK installs, memory auto-tune reports the full 4 GB VRAM,
-  and Steam installs into the prefix.
+  macOS 15.7.7:
+  - **Sikarugir wrapper:** Steam UI renders, login works, DXVK + memory auto-tune
+    via `scripts/configure_sikarugir_wrapper.sh` (4096 MB VRAM / 2048 MB shared).
+  - **Vanilla Wine (this repo):** Wine staging 11.10 runs natively, DXVK/MoltenVK
+    initialize on the GPU, Steam installs — but **Steam's UI is not reliably visible**
+    on Intel (documented above).
 
 ## What The Scripts Do (Short)
 

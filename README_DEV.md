@@ -187,3 +187,31 @@ cp merlot_configs/template.conf.example merlot_configs/my-game.conf
 - `merlot_configs/*.conf` - per-game launcher metadata and `run.command` environment overrides
 - `merlot_configs/template.conf.example` - starting point for new game configs; not built by the script
 - `install_merlot.command` - assembles and installs the `Merlot Apps/` folder
+
+## Sikarugir wrapper configuration
+
+For **Steam on Intel Macs**, vanilla Wine's CEF UI is unreliable. [Sikarugir](https://github.com/Sikarugir-App/Sikarugir)
+(CrossOver-lineage) is the recommended path. This repo includes
+`scripts/configure_sikarugir_wrapper.sh` to apply the same **DXVK + memory auto-tune**
+logic to a Sikarugir wrapper after Steam is installed.
+
+```bash
+./scripts/configure_sikarugir_wrapper.sh "$HOME/Applications/Sikarugir/Stream.app"
+```
+
+The script:
+
+- Sets `DXVK=1`, `D3DMETAL=0`, `DXMT=0` in the wrapper's `Info.plist`
+- Sets `Program Name and Path` to `C:\Program Files (x86)\Steam\steam.exe` when present
+- Installs `Contents/Resources/Scripts/StartupScript` that detects RAM/VRAM and writes
+  `SharedSupport/prefix/dxvk.conf`, then exports `DXVK_CONFIG_FILE`
+- Writes an initial `dxvk.conf` immediately (same formulas as `run.command`)
+
+Memory formulas (identical to Merlot auto-tune):
+
+- `dxgi.maxDeviceMemory` = detected VRAM (MB)
+- `dxgi.maxSharedMemory` = `RAM/4`, clamped 1024–8192 MB
+- `d3d9.maxAvailableMemory` = detected VRAM (MB)
+
+On Intel Macs, pick **DXVK** in Sikarugir's GUI (not D3DMetal, which is Apple Silicon only).
+The script enables DXVK via plist so the wrapper copies bundled DXVK DLLs on next launch.
