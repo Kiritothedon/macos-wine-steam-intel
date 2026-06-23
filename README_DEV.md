@@ -150,7 +150,10 @@ Merlot Apps/
 ### How it works
 
 1. `install_merlot.command` reads each `merlot_configs/*.conf` and generates one `.app` bundle per config.
-2. It asks for `sudo`, replaces `/Applications/Merlot Apps`, and copies the freshly generated folder there.
+2. It replaces `${INSTALL_ROOT}/Merlot Apps` and copies the freshly generated
+   folder there. `INSTALL_ROOT` defaults to `/Applications` (uses `sudo`); set
+   `INSTALL_ROOT="$HOME/Applications"` for a per-user install with no password.
+   `sudo` is only invoked when the target location is not user-writable.
 3. Each bundle uses the shared `app/merlot/MerlotLauncher`, generated `Info.plist`, copied `run.command`, and an app-local `merlot.env`.
 4. `MerlotLauncher` opens Terminal and runs the embedded `run.command` with the environment overrides listed in that app's `merlot.env`.
 5. The launcher exports `SCRIPT_DIR` pointing to the directory containing the `.app`, so the shared `WINEPREFIX` alias symlink lands in `/Applications/Merlot Apps/`.

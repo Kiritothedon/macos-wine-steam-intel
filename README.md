@@ -78,6 +78,10 @@ This project would not exist without:
 3. If macOS blocks it, right-click `install_merlot.command` -> `Open` -> confirm `Open`.
 4. It installs `Merlot Apps` into `/Applications` (asks for your macOS password
    only to copy into `/Applications`).
+   - **Prefer no password?** Install into your user Applications folder instead —
+     open Terminal in the unzipped folder and run
+     `INSTALL_ROOT="$HOME/Applications" ./install_merlot.command`. The apps still
+     appear in Spotlight and Launchpad, with no password prompt.
 
 #### Run:
 

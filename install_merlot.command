@@ -4,7 +4,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 TEMPLATE_DIR="${SCRIPT_DIR}/app/merlot"
 CONFIGS_DIR="${SCRIPT_DIR}/merlot_configs"
-INSTALL_ROOT="/Applications"
+# INSTALL_ROOT defaults to /Applications (system-wide, needs your password).
+# Set INSTALL_ROOT="$HOME/Applications" for a per-user install with NO password.
+INSTALL_ROOT="${INSTALL_ROOT:-/Applications}"
 INSTALL_DIR="${INSTALL_ROOT}/Merlot Apps"
 DEFAULT_ICON_PATH="${SCRIPT_DIR}/app/merlot/AppIcon.icns"
 LAUNCHER_TEMPLATE="${TEMPLATE_DIR}/MerlotLauncher"
@@ -20,8 +22,23 @@ die() {
 }
 
 ensure_sudo_ready() {
-  log "Preparing sudo session (needed to install into /Applications)"
+  log "Preparing sudo session (needed to install into ${INSTALL_ROOT})"
   sudo -v
+}
+
+# Returns success (0) when installing requires sudo, i.e. the target location is
+# not writable by the current user (e.g. /Applications). A user-writable target
+# such as ~/Applications needs no password.
+install_needs_sudo() {
+  if [[ -e "${INSTALL_DIR}" ]]; then
+    [[ -w "${INSTALL_DIR}" ]] && return 1 || return 0
+  fi
+  if [[ -d "${INSTALL_ROOT}" ]]; then
+    [[ -w "${INSTALL_ROOT}" ]] && return 1 || return 0
+  fi
+  local parent
+  parent="$(dirname "${INSTALL_ROOT}")"
+  [[ -w "${parent}" ]] && return 1 || return 0
 }
 
 resolve_path() {
@@ -205,7 +222,14 @@ main() {
 
   (( ${#config_paths[@]} > 0 )) || die "No configs selected"
 
-  ensure_sudo_ready
+  local SUDO=""
+  if install_needs_sudo; then
+    ensure_sudo_ready
+    SUDO="sudo"
+  else
+    log "Installing to ${INSTALL_ROOT} (user-writable, no password needed)"
+  fi
+
   temp_root="$(mktemp -d /tmp/merlot-apps.XXXXXX)"
   output_dir="${temp_root}/Merlot Apps"
   mkdir -p "${output_dir}"
@@ -217,12 +241,12 @@ main() {
   done
 
   log "Installing to ${INSTALL_DIR}"
-  sudo rm -rf "${INSTALL_DIR}"
-  sudo mkdir -p "${INSTALL_ROOT}"
-  sudo cp -R "${output_dir}" "${INSTALL_ROOT}/"
+  ${SUDO} rm -rf "${INSTALL_DIR}"
+  ${SUDO} mkdir -p "${INSTALL_ROOT}"
+  ${SUDO} cp -R "${output_dir}" "${INSTALL_ROOT}/"
 
   log "Installed app folder: ${INSTALL_DIR}"
   echo ""
-  echo "Launch any app inside '/Applications/Merlot Apps' from Finder, Launchpad, or Spotlight."
+  echo "Launch any app inside '${INSTALL_DIR}' from Finder, Launchpad, or Spotlight."
 }
 main "$@"
