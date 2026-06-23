@@ -1,0 +1,23 @@
+# Copy this file to merlot_configs/<your-game>.conf and adjust the values.
+# Only *.conf files are built by install_merlot.command. This *.example file is ignored.
+
+APP_NAME="Example Game (Merlot)"
+BUNDLE_ID="com.merlot.example-game"
+
+# Optional overrides.
+# ICON_PATH="path/to/custom-icon.icns"  # Default is "app/merlot/AppIcon.icns"
+# APP_VERSION="1.0"
+# LS_MINIMUM_SYSTEM_VERSION="11.0"
+
+# Any name listed here is exported into run.command's environment. Useful ones:
+#   STEAM_GAME_ID    Steam AppID to auto-launch (-applaunch)
+#   DXVK_FRAME_RATE  Frame-rate cap, e.g. "60" (0 = uncapped)
+#   DXVK_HUD         DXVK overlay, e.g. "fps" or "full"
+#   USE_DXVK         "0" to fall back to Wine's builtin WineD3D (covers D3D9)
+RUN_ENV_NAMES=(
+  STEAM_GAME_ID
+  DXVK_FRAME_RATE
+)
+
+STEAM_GAME_ID="123456"
+DXVK_FRAME_RATE="60"
