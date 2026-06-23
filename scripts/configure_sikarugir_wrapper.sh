@@ -1,22 +1,27 @@
 #!/usr/bin/env bash
-# Configure a Sikarugir (Wineskin) wrapper for DXVK + hardware-aware memory tuning.
+# Configure a Sikarugir (Wineskin) wrapper for DXVK + hardware-aware memory tuning
+# + game storage on your Mac's main disk (not buried inside the .app bundle).
 #
 # Usage:
 #   ./scripts/configure_sikarugir_wrapper.sh "/path/to/YourWrapper.app"
 #   ./scripts/configure_sikarugir_wrapper.sh   # defaults to ~/Applications/Sikarugir/Stream.app
 #
-# What it does:
-#   - Enables DXVK in the wrapper Info.plist (Intel Macs: DXVK, not D3DMetal)
-#   - Points the wrapper at steam.exe (if installed in the prefix)
-#   - Installs a StartupScript that detects RAM/VRAM and writes dxvk.conf each launch
+# Environment overrides:
+#   GAMES_DIR  — where Steam game files live on macOS (default: ~/Games/SteamLibrary)
 set -euo pipefail
 
 WRAPPER="${1:-$HOME/Applications/Sikarugir/Stream.app}"
+GAMES_DIR="${GAMES_DIR:-$HOME/Games/SteamLibrary}"
 PLIST="${WRAPPER}/Contents/Info.plist"
 PREFIX="${WRAPPER}/Contents/SharedSupport/prefix"
+DOSDEV="${PREFIX}/dosdevices"
+DXVK_SRC="${WRAPPER}/Contents/Frameworks/renderer/dxvk/wine"
 STARTUP="${WRAPPER}/Contents/Resources/Scripts/StartupScript"
 STEAM_WIN='C:\Program Files (x86)\Steam\steam.exe'
 STEAM_UNIX="${PREFIX}/drive_c/Program Files (x86)/Steam/steam.exe"
+STEAM_LIB_VDF="${PREFIX}/drive_c/Program Files (x86)/Steam/steamapps/libraryfolders.vdf"
+STEAM_CFG_VDF="${PREFIX}/drive_c/Program Files (x86)/Steam/config/libraryfolders.vdf"
+WIN_GAMES='D:\\'
 
 die() {
   printf 'Error: %s\n' "$1" >&2
@@ -50,6 +55,87 @@ detect_vram_mb() {
   esac
 }
 
+disk_free_bytes() {
+  local dir="$1"
+  mkdir -p "${dir}"
+  df -k "${dir}" 2>/dev/null | awk 'NR==2 {print $4 * 1024}'
+}
+
+install_dxvk_dlls() {
+  [[ -d "${DXVK_SRC}/x86_64-windows" && -d "${DXVK_SRC}/i386-windows" ]] \
+    || die "DXVK renderer not found in wrapper: ${DXVK_SRC}"
+
+  local sys32="${PREFIX}/drive_c/windows/system32"
+  local wow64="${PREFIX}/drive_c/windows/syswow64"
+
+  log "Installing DXVK DLLs into Wine prefix (activates GPU rendering)"
+  cp -f "${DXVK_SRC}/x86_64-windows/"*.dll "${sys32}/"
+  cp -f "${DXVK_SRC}/i386-windows/"*.dll "${wow64}/"
+}
+
+setup_games_storage() {
+  mkdir -p "${GAMES_DIR}/steamapps/common" "${GAMES_DIR}/steamapps/downloading"
+  log "Game storage folder: ${GAMES_DIR} ($(df -h "${GAMES_DIR}" | awk 'NR==2 {print $4}') free)"
+
+  mkdir -p "${DOSDEV}"
+  ln -sfn "${GAMES_DIR}" "${DOSDEV}/d:"
+  log "Mapped Wine drive D: -> ${GAMES_DIR}"
+
+  if [[ ! -f "${STEAM_UNIX}" ]]; then
+    log "Steam not installed yet — storage ready; add library folder D:\\ in Steam after login"
+    return
+  fi
+
+  local free_bytes
+  free_bytes="$(disk_free_bytes "${GAMES_DIR}")"
+  [[ -n "${free_bytes}" && "${free_bytes}" -gt 0 ]] || free_bytes=107374182400
+
+  for vdf in "${STEAM_LIB_VDF}" "${STEAM_CFG_VDF}"; do
+    [[ -f "${vdf}" ]] || continue
+    if grep -q 'D:\\\\' "${vdf}" 2>/dev/null || grep -q 'D:\\' "${vdf}" 2>/dev/null; then
+      log "Steam library D: already in $(basename "$(dirname "${vdf}")")/$(basename "${vdf}")"
+      continue
+    fi
+    # Append a second library entry pointing at D:\ (your ~/Games/SteamLibrary).
+    python3 - "${vdf}" "${WIN_GAMES}" "${free_bytes}" <<'PY'
+import re, sys
+path, win_path, free = sys.argv[1], sys.argv[2], sys.argv[3]
+text = open(path, encoding="utf-8", errors="replace").read()
+if re.search(r'"path"\s+"D:\\\\', text):
+    sys.exit(0)
+insert = f'''
+\t"1"
+\t{{
+\t\t"path"\t\t"{win_path}"
+\t\t"label"\t\t"Mac Games Drive"
+\t\t"contentid"\t\t"1"
+\t\t"totalsize"\t\t"{free}"
+\t\t"update_clean_bytes_tally"\t\t"0"
+\t\t"time_last_update_verified"\t\t"0"
+\t\t"apps"
+\t\t{{
+\t\t}}
+\t}}'''
+text = text.rstrip()
+if text.endswith('}'):
+    text = text[:-1].rstrip() + insert + "\n}\n"
+open(path, "w", encoding="utf-8").write(text)
+PY
+    log "Added Steam library ${WIN_GAMES} -> ${GAMES_DIR} in ${vdf##*/}"
+  done
+}
+
+write_dxvk_conf() {
+  local ram_mb="$1" vram_mb="$2" shared_mb="$3" conf="$4" header="$5"
+  cat > "${conf}" <<EOF
+${header}
+# ${ram_mb} MB system RAM, ${vram_mb} MB VRAM, ${shared_mb} MB shared GPU budget
+dxgi.maxDeviceMemory = ${vram_mb}
+dxgi.maxSharedMemory = ${shared_mb}
+d3d9.maxAvailableMemory = ${vram_mb}
+EOF
+}
+
 log "Configuring ${WRAPPER}"
 
 # Enable DXVK (disable Apple-Silicon-only backends).
@@ -57,7 +143,11 @@ log "Configuring ${WRAPPER}"
 /usr/libexec/PlistBuddy -c 'Set :D3DMETAL 0' "${PLIST}"
 /usr/libexec/PlistBuddy -c 'Set :DXMT 0' "${PLIST}"
 /usr/libexec/PlistBuddy -c 'Set :D9VK 0' "${PLIST}"
+/usr/libexec/PlistBuddy -c 'Set :Try To Use GPU Info 1' "${PLIST}" 2>/dev/null || true
 log "Enabled DXVK in Info.plist"
+
+install_dxvk_dlls
+setup_games_storage
 
 if [[ -f "${STEAM_UNIX}" ]]; then
   /usr/libexec/PlistBuddy -c 'Set :Program\ Name\ and\ Path C:\\Program\ Files\ \(x86\)\\Steam\\steam.exe' "${PLIST}"
@@ -95,33 +185,31 @@ shared_mb=$((ram_mb / 4))
 [ "${shared_mb}" -gt 8192 ] && shared_mb=8192
 
 cat > "${CONF}" <<EOF
-# Auto-generated at wrapper launch from detected hardware.
-# ${ram_mb} MB RAM, ${vram_mb} MB VRAM
+# Auto-generated at wrapper launch from this Mac's hardware.
+# ${ram_mb} MB system RAM, ${vram_mb} MB VRAM, ${shared_mb} MB shared GPU budget
 dxgi.maxDeviceMemory = ${vram_mb}
 dxgi.maxSharedMemory = ${shared_mb}
 d3d9.maxAvailableMemory = ${vram_mb}
 EOF
 
 export DXVK_CONFIG_FILE="${CONF}"
+# Optional: uncomment to show FPS overlay in games
+# export DXVK_HUD=fps
 SCRIPT
 chmod +x "${STARTUP}"
 log "Installed memory-aware StartupScript"
 
-# Write an initial dxvk.conf now (StartupScript refreshes it on each launch).
 ram_mb="$(detect_ram_mb)"
 vram_mb="$(detect_vram_mb)"
 shared_mb=$(( ram_mb / 4 ))
 (( shared_mb < 1024 )) && shared_mb=1024
 (( shared_mb > 8192 )) && shared_mb=8192
 
-cat > "${PREFIX}/dxvk.conf" <<EOF
-# Auto-generated by configure_sikarugir_wrapper.sh
-# Detected: ${ram_mb} MB RAM, ${vram_mb} MB VRAM
-dxgi.maxDeviceMemory = ${vram_mb}
-dxgi.maxSharedMemory = ${shared_mb}
-d3d9.maxAvailableMemory = ${vram_mb}
-EOF
-log "Wrote ${PREFIX}/dxvk.conf (${ram_mb} MB RAM, ${vram_mb} MB VRAM)"
+write_dxvk_conf "${ram_mb}" "${vram_mb}" "${shared_mb}" \
+  "${PREFIX}/dxvk.conf" "# Auto-generated by configure_sikarugir_wrapper.sh"
+log "Wrote ${PREFIX}/dxvk.conf (${ram_mb} MB RAM, ${vram_mb} MB VRAM, ${shared_mb} MB shared)"
 
-printf '\nDone. Launch %s from Finder.\n' "${WRAPPER}"
-printf 'DXVK is enabled; games will use your GPU with memory tuned to this Mac.\n'
+printf '\nDone.\n'
+printf '  Memory: games see %s MB VRAM + %s MB shared (from your %s MB RAM)\n' "${vram_mb}" "${shared_mb}" "${ram_mb}"
+printf '  Storage: install games to D:\\  ->  %s\n' "${GAMES_DIR}"
+printf '  Launch:  %s\n' "${WRAPPER}"

@@ -50,8 +50,19 @@ From this repo, run (adjust the path if you named your wrapper differently):
 ```
 
 This enables **DXVK** (best for AMD GPUs like Radeon Pro 570X), points the wrapper at
-`steam.exe`, and writes a **`dxvk.conf` tuned to your Mac's RAM and VRAM** on every launch
-(e.g. 8192 MB RAM / 4096 MB VRAM → reports full 4 GB VRAM to games).
+`steam.exe`, and:
+
+- **Memory:** writes a **`dxvk.conf` tuned to your Mac's RAM and VRAM** on every launch
+  (e.g. 8192 MB RAM / 4096 MB VRAM → games see 4096 MB VRAM + 2048 MB shared).
+- **Storage:** maps Wine drive **`D:\`** to **`~/Games/SteamLibrary`** on your main disk
+  and registers it as a Steam library (~461 GB free on your Mac). Install games to
+  **D:\** in Steam so they don't fill up the wrapper `.app` bundle.
+
+Default games folder: `~/Games/SteamLibrary`. Override with:
+
+```bash
+GAMES_DIR="$HOME/Games/SteamLibrary" ./scripts/configure_sikarugir_wrapper.sh
+```
 
 Then launch your wrapper from Finder or Spotlight.
 

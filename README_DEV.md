@@ -202,10 +202,13 @@ logic to a Sikarugir wrapper after Steam is installed.
 The script:
 
 - Sets `DXVK=1`, `D3DMETAL=0`, `DXMT=0` in the wrapper's `Info.plist`
+- **Copies bundled DXVK DLLs** into the prefix (`system32` / `syswow64`) so GPU rendering
+  is active immediately (check: `d3d11.dll` should be ~4 MB, not ~400 KB)
 - Sets `Program Name and Path` to `C:\Program Files (x86)\Steam\steam.exe` when present
+- Maps Wine **`D:`** → **`~/Games/SteamLibrary`** (override with `GAMES_DIR`) and adds it
+  to Steam's `libraryfolders.vdf` with your disk's **free space** as `totalsize`
 - Installs `Contents/Resources/Scripts/StartupScript` that detects RAM/VRAM and writes
   `SharedSupport/prefix/dxvk.conf`, then exports `DXVK_CONFIG_FILE`
-- Writes an initial `dxvk.conf` immediately (same formulas as `run.command`)
 
 Memory formulas (identical to Merlot auto-tune):
 
