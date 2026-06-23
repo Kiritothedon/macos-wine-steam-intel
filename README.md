@@ -169,6 +169,13 @@ If Steam is running, follow the steps in "Stop" first.
 - **Intel only.** Apple Silicon Macs should use the original project.
 - This project does not change macOS system settings.
 
+### Verified on
+
+- iMac (2019), 6-core Intel Core i5, **Radeon Pro 570X (4 GB)**, 8 GB RAM,
+  macOS 15.7.7 — Wine staging 11.10 runs natively (no Rosetta), the Steam Wine
+  prefix initializes, DXVK installs, memory auto-tune reports the full 4 GB VRAM,
+  and Steam installs into the prefix.
+
 ## What The Scripts Do (Short)
 
 `run.command`:
