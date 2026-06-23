@@ -78,6 +78,10 @@ Defaults are the values in `run.command`.
 - `DXVK_ROOT` — where DXVK dll folders live (default `~/DXVK`).
 - `WINEPREFIX_ALIAS_NAME` — symlink name next to `run.command` (default `WINEPREFIX`).
 - `WINE_RETINA_MODE` — `1` enable, `0` disable (default `0`).
+- `WINE_WINDOWS_VERSION` — Windows version the prefix reports (default `win7`).
+  `win7` makes Steam use its older `cef.win7x64` UI, which renders under Wine;
+  `win10`/`default` leaves Wine's default, where modern Steam's `cef.win64` UI is
+  a black window. Implemented by setting `HKCU\Software\Wine\Version`.
 - `WINE_MOUSE_WARP_OVERRIDE` — empty (default) keeps Wine default; `force|enable|disable`.
 - `MERLOT_DETACH` — `1` (default) detaches Steam from Terminal; `0` foreground.
 - `MERLOT_STEAM_LOG` — detached-mode Steam log path.

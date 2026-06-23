@@ -170,17 +170,23 @@ If Steam is running, follow the steps in "Stop" first.
 
 ## Troubleshooting
 
-- **Steam opens as a black window / blank login box.** This is a known macOS-Wine
-  issue with Steam's CEF interface. It is handled automatically: `run.command`
-  launches Steam with `-cef-disable-gpu -cef-disable-gpu-compositing`
-  (`STEAM_CEF_DISABLE_GPU=1`, the default). This affects only Steam's own 2D UI,
-  never in-game rendering. To turn it off, run with `STEAM_CEF_DISABLE_GPU=0`.
-- **A `glClear ... GL_INVALID_FRAMEBUFFER_OPERATION` line in the log** is harmless
-  Steam-client-UI noise (Steam's chrome uses D3D9 → Wine's OpenGL path; the DXVK
-  backend here covers D3D10/11). It does not affect games.
+- **Steam opens as a black window / blank login box.** Modern Steam's 64-bit
+  Chromium UI (`cef.win64`) does not paint under Wine's macOS driver. The fix is
+  to run the prefix in **Windows 7 mode**, which makes Steam use its older
+  Chromium build (`cef.win7x64`) that Wine *can* render. This is the default
+  here (`WINE_WINDOWS_VERSION=win7`), together with
+  `-cef-disable-gpu`/`-cef-disable-sandbox`. If you switched an existing prefix
+  from Windows 10, Steam re-downloads the matching client once.
+  - If the Steam window is still black on the very first paint, **drag a corner
+    to resize it** — Wine sometimes needs one repaint to show the content.
+  - These settings affect only Steam's launcher UI, never in-game rendering.
+- **A game requires Windows 10.** Most games run fine in Win7 mode under Wine.
+  If a specific game refuses to start, you can flip the prefix back with
+  `WINE_WINDOWS_VERSION=win10 ./run.command` (the Steam UI may go black again).
 - **You see two Steams.** If you also have the native macOS Steam app installed,
   it runs independently of this Wine Steam. Log into the Wine Steam to play
-  Windows-only games.
+  Windows-only games. (Check which window is focused: our Steam shows up as the
+  `wine` app.)
 
 ## Notes
 

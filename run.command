@@ -31,6 +31,15 @@ WINE_BIN="${WINE_APP}/Contents/Resources/wine/bin/wine"
 WINEPREFIX="${WINEPREFIX:-$HOME/.wine-steam-intel}"
 STEAM_SETUP="/tmp/SteamSetup.exe"
 
+# Windows version reported by the prefix. THIS MATTERS: on Windows 10 (Wine's
+# default) modern Steam uses its 64-bit Chromium UI (cef.win64), which renders
+# as a permanent BLACK WINDOW under Wine's macOS driver. On Windows 7, Steam
+# uses its older Chromium (cef.win7x64), which Wine can actually present. So we
+# default the prefix to win7 to make the Steam UI visible. Set to "default" (or
+# "win10") if you specifically need a Windows 10 prefix and don't mind a black
+# Steam window.
+WINE_WINDOWS_VERSION="${WINE_WINDOWS_VERSION:-win7}"
+
 # DXVK (DirectX -> Vulkan) backend. The macOS "builtin" variant ships
 # i386-windows / x86_64-windows dll folders, just like DXMT did, so it slots
 # into WINEDLLPATH_PREPEND. It provides d3d10core + d3d11; dxgi/d3d9 come from
@@ -58,8 +67,17 @@ MERLOT_STEAM_LOG="${MERLOT_STEAM_LOG:-${TMPDIR:-/tmp}/merlot-steam.log}"
 # macOS unless CEF GPU acceleration is disabled. On by default; it only affects
 # Steam's own 2D interface, never in-game (DXVK) rendering. Set to 0 to disable.
 STEAM_CEF_DISABLE_GPU="${STEAM_CEF_DISABLE_GPU:-1}"
+# Chromium's sandbox breaks socket access in CEF subprocesses under Wine, so the
+# login page can't reach Steam's servers (blank/black login). Disabling the CEF
+# sandbox fixes it. On by default. Set to 0 to keep the sandbox.
+STEAM_CEF_DISABLE_SANDBOX="${STEAM_CEF_DISABLE_SANDBOX:-1}"
 # Extra arguments appended to the Steam launch (advanced).
 STEAM_LAUNCH_ARGS="${STEAM_LAUNCH_ARGS:-}"
+# Run Steam inside a Wine virtual desktop (a single Wine-managed window with its
+# own framebuffer). This fixes the black-window problem on Macs where Steam's
+# CEF UI renders offscreen but never paints to a native window. Empty=off
+# (native windows); set to a size like "1280x800", or "1" for a default size.
+WINE_VIRTUAL_DESKTOP="${WINE_VIRTUAL_DESKTOP:-}"
 # Default before we added this: the value is not set in registry (Wine internal default).
 # Set to force|enable|disable to override, or leave empty to keep default.
 WINE_MOUSE_WARP_OVERRIDE="${WINE_MOUSE_WARP_OVERRIDE:-}"
@@ -211,6 +229,25 @@ ensure_wine_windows_mouse_accel_disabled() {
   "${WINE_BIN}" reg add "HKCU\\Control Panel\\Mouse" /v MouseThreshold2 /t REG_SZ /d 0 /f >/dev/null
 
   echo "Set MouseSpeed=0, MouseThreshold1=0, MouseThreshold2=0."
+}
+
+ensure_wine_windows_version() {
+  local v="${WINE_WINDOWS_VERSION}"
+  if [[ -z "${v}" || "${v}" == "default" || "${v}" == "win10" ]]; then
+    log "Using Wine default Windows version (note: Steam UI may be a black window)"
+    "${WINE_BIN}" reg delete "HKCU\\Software\\Wine" /v Version /f >/dev/null 2>&1 || true
+    return
+  fi
+
+  log "Setting Wine Windows version to ${v} (so Steam's UI renders instead of black)"
+  local query_out
+  query_out="$("${WINE_BIN}" reg query "HKCU\\Software\\Wine" /v Version 2>/dev/null || true)"
+  if printf "%s" "${query_out}" | grep -Eiq "Version[[:space:]]+REG_SZ[[:space:]]+${v}\b"; then
+    echo "Windows version already set to ${v}. Skipping."
+    return
+  fi
+  "${WINE_BIN}" reg add "HKCU\\Software\\Wine" /v Version /t REG_SZ /d "${v}" /f >/dev/null
+  echo "Set Windows version=${v}."
 }
 
 find_steam_exe() {
@@ -395,10 +432,21 @@ launch_steam() {
   steam_exe="$(find_steam_exe || true)"
   [[ -n "${steam_exe}" ]] || die "steam.exe not found."
 
-  local -a steam_cmd=("${WINE_BIN}" "${steam_exe}")
+  local -a steam_cmd=("${WINE_BIN}")
+  if [[ -n "${WINE_VIRTUAL_DESKTOP}" ]]; then
+    local _res="${WINE_VIRTUAL_DESKTOP}"
+    [[ "${_res}" == "1" ]] && _res="1280x800"
+    echo "Running Steam inside a Wine virtual desktop (${_res})."
+    steam_cmd+=(explorer "/desktop=Merlot,${_res}")
+  fi
+  steam_cmd+=("${steam_exe}")
   if [[ "${STEAM_CEF_DISABLE_GPU}" == "1" ]]; then
     # Work around the black-window CEF rendering bug on macOS Wine.
     steam_cmd+=(-cef-disable-gpu -cef-disable-gpu-compositing)
+  fi
+  if [[ "${STEAM_CEF_DISABLE_SANDBOX}" == "1" ]]; then
+    # Let CEF subprocesses use sockets so the login page can reach Steam.
+    steam_cmd+=(-cef-disable-sandbox)
   fi
   if [[ -n "${STEAM_LAUNCH_ARGS}" ]]; then
     # Word-split intentionally so callers can pass multiple flags.
@@ -437,6 +485,7 @@ main() {
   ensure_wine_mouse_warp_override
   ensure_wine_retina_mode "${WINE_RETINA_MODE}"
   ensure_wine_windows_mouse_accel_disabled
+  ensure_wine_windows_version
   ensure_steam_installed
   if use_dxvk; then
     ensure_dxvk_installed
